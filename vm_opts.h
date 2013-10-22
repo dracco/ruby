@@ -36,7 +36,7 @@
 
 /* VM running option */
 #define OPT_CHECKED_RUN              1
-#define OPT_INLINE_METHOD_CACHE      1
+#define OPT_INLINE_METHOD_CACHE      0
 #define OPT_BLOCKINLINING            0
 
 /* architecture independent, affects generated code */

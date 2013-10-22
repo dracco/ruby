@@ -352,6 +352,7 @@ static const struct types {
     {T_MODULE,	"Module"},
     {T_FLOAT,	"Float"},
     {T_STRING,	"String"},
+    {T_WIDGET,	"Widget"},
     {T_REGEXP,	"Regexp"},
     {T_ARRAY,	"Array"},
     {T_FIXNUM,	"Fixnum"},

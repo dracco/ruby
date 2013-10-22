@@ -33,7 +33,7 @@ static VALUE send_internal(int argc, const VALUE *argv, VALUE recv, call_type sc
 
 static inline VALUE
 vm_call0(rb_thread_t* th, VALUE recv, VALUE id, int argc, const VALUE *argv,
-	 const rb_method_entry_t *me)
+         const rb_method_entry_t *me)
 {
     const rb_method_definition_t *def = me->def;
     VALUE val;
@@ -42,107 +42,107 @@ vm_call0(rb_thread_t* th, VALUE recv, VALUE id, int argc, const VALUE *argv,
 
     if (!def) return Qnil;
     if (th->passed_block) {
-	blockptr = th->passed_block;
-	th->passed_block = 0;
+        blockptr = th->passed_block;
+        th->passed_block = 0;
     }
 
   again:
     switch (def->type) {
       case VM_METHOD_TYPE_ISEQ: {
-	rb_control_frame_t *reg_cfp;
-	int i;
+        rb_control_frame_t *reg_cfp;
+        int i;
 
-	rb_vm_set_finish_env(th);
-	reg_cfp = th->cfp;
+        rb_vm_set_finish_env(th);
+        reg_cfp = th->cfp;
 
-	CHECK_STACK_OVERFLOW(reg_cfp, argc + 1);
+        CHECK_STACK_OVERFLOW(reg_cfp, argc + 1);
 
-	*reg_cfp->sp++ = recv;
-	for (i = 0; i < argc; i++) {
-	    *reg_cfp->sp++ = argv[i];
-	}
+        *reg_cfp->sp++ = recv;
+        for (i = 0; i < argc; i++) {
+            *reg_cfp->sp++ = argv[i];
+        }
 
-	vm_setup_method(th, reg_cfp, recv, argc, blockptr, 0 /* flag */, me);
-	val = vm_exec(th);
-	break;
+        vm_setup_method(th, reg_cfp, recv, argc, blockptr, 0 /* flag */, me);
+        val = vm_exec(th);
+        break;
       }
       case VM_METHOD_TYPE_NOTIMPLEMENTED:
       case VM_METHOD_TYPE_CFUNC: {
-	EXEC_EVENT_HOOK(th, RUBY_EVENT_C_CALL, recv, id, klass);
-	{
-	    rb_control_frame_t *reg_cfp = th->cfp;
-	    rb_control_frame_t *cfp =
-		vm_push_frame(th, 0, VM_FRAME_MAGIC_CFUNC,
-			      recv, (VALUE)blockptr, 0, reg_cfp->sp, 0, 1);
+        EXEC_EVENT_HOOK(th, RUBY_EVENT_C_CALL, recv, id, klass);
+        {
+            rb_control_frame_t *reg_cfp = th->cfp;
+            rb_control_frame_t *cfp =
+                vm_push_frame(th, 0, VM_FRAME_MAGIC_CFUNC,
+                              recv, (VALUE)blockptr, 0, reg_cfp->sp, 0, 1);
 
-	    cfp->me = me;
-	    val = call_cfunc(def->body.cfunc.func, recv, def->body.cfunc.argc, argc, argv);
+            cfp->me = me;
+            val = call_cfunc(def->body.cfunc.func, recv, def->body.cfunc.argc, argc, argv);
 
-	    if (reg_cfp != th->cfp + 1) {
-		rb_bug("cfp consistency error - call0");
-	    }
-	    vm_pop_frame(th);
-	}
-	EXEC_EVENT_HOOK(th, RUBY_EVENT_C_RETURN, recv, id, klass);
-	break;
+            if (reg_cfp != th->cfp + 1) {
+                rb_bug("cfp consistency error - call0");
+            }
+            vm_pop_frame(th);
+        }
+        EXEC_EVENT_HOOK(th, RUBY_EVENT_C_RETURN, recv, id, klass);
+        break;
       }
       case VM_METHOD_TYPE_ATTRSET: {
-	if (argc != 1) {
-	    rb_raise(rb_eArgError, "wrong number of arguments (%d for 1)", argc);
-	}
-	val = rb_ivar_set(recv, def->body.attr.id, argv[0]);
-	break;
+        if (argc != 1) {
+            rb_raise(rb_eArgError, "wrong number of arguments (%d for 1)", argc);
+        }
+        val = rb_ivar_set(recv, def->body.attr.id, argv[0]);
+        break;
       }
       case VM_METHOD_TYPE_IVAR: {
-	if (argc != 0) {
-	    rb_raise(rb_eArgError, "wrong number of arguments (%d for 0)", argc);
-	}
-	val = rb_attr_get(recv, def->body.attr.id);
-	break;
+        if (argc != 0) {
+            rb_raise(rb_eArgError, "wrong number of arguments (%d for 0)", argc);
+        }
+        val = rb_attr_get(recv, def->body.attr.id);
+        break;
       }
       case VM_METHOD_TYPE_BMETHOD: {
-	val = vm_call_bmethod(th, recv, argc, argv, blockptr, me);
-	break;
+        val = vm_call_bmethod(th, recv, argc, argv, blockptr, me);
+        break;
       }
       case VM_METHOD_TYPE_ZSUPER: {
-	klass = RCLASS_SUPER(klass);
-	if (!klass || !(me = rb_method_entry(klass, id))) {
-	    return method_missing(recv, id, argc, argv, NOEX_SUPER);
-	}
-	RUBY_VM_CHECK_INTS();
-	if (!(def = me->def)) return Qnil;
-	goto again;
+        klass = RCLASS_SUPER(klass);
+        if (!klass || !(me = rb_method_entry(klass, id))) {
+            return method_missing(recv, id, argc, argv, NOEX_SUPER);
+        }
+        RUBY_VM_CHECK_INTS();
+        if (!(def = me->def)) return Qnil;
+        goto again;
       }
       case VM_METHOD_TYPE_MISSING: {
-	VALUE new_args = rb_ary_new4(argc, argv);
+        VALUE new_args = rb_ary_new4(argc, argv);
 
-	RB_GC_GUARD(new_args);
-	rb_ary_unshift(new_args, ID2SYM(id));
-	th->passed_block = blockptr;
-	return rb_funcall2(recv, idMethodMissing,
-			   argc+1, RARRAY_PTR(new_args));
+        RB_GC_GUARD(new_args);
+        rb_ary_unshift(new_args, ID2SYM(id));
+        th->passed_block = blockptr;
+        return rb_funcall2(recv, idMethodMissing,
+                           argc+1, RARRAY_PTR(new_args));
       }
       case VM_METHOD_TYPE_OPTIMIZED: {
-	switch (def->body.optimize_type) {
-	  case OPTIMIZED_METHOD_TYPE_SEND:
-	    val = send_internal(argc, argv, recv, CALL_FCALL);
-	    break;
-	  case OPTIMIZED_METHOD_TYPE_CALL: {
-	    rb_proc_t *proc;
-	    GetProcPtr(recv, proc);
-	    val = rb_vm_invoke_proc(th, proc, proc->block.self, argc, argv, blockptr);
-	    break;
-	  }
-	  default:
-	    rb_bug("vm_call0: unsupported optimized method type (%d)", def->body.optimize_type);
-	    val = Qundef;
-	    break;
-	}
-	break;
+        switch (def->body.optimize_type) {
+          case OPTIMIZED_METHOD_TYPE_SEND:
+            val = send_internal(argc, argv, recv, CALL_FCALL);
+            break;
+          case OPTIMIZED_METHOD_TYPE_CALL: {
+            rb_proc_t *proc;
+            GetProcPtr(recv, proc);
+            val = rb_vm_invoke_proc(th, proc, proc->block.self, argc, argv, blockptr);
+            break;
+          }
+          default:
+            rb_bug("vm_call0: unsupported optimized method type (%d)", def->body.optimize_type);
+            val = Qundef;
+            break;
+        }
+        break;
       }
       default:
-	rb_bug("vm_call0: unsupported method type (%d)", def->type);
-	val = Qundef;
+        rb_bug("vm_call0: unsupported method type (%d)", def->type);
+        val = Qundef;
     }
     RUBY_VM_CHECK_INTS();
     return val;
@@ -150,7 +150,7 @@ vm_call0(rb_thread_t* th, VALUE recv, VALUE id, int argc, const VALUE *argv,
 
 VALUE
 rb_vm_call(rb_thread_t *th, VALUE recv, VALUE id, int argc, const VALUE *argv,
-	   const rb_method_entry_t *me)
+           const rb_method_entry_t *me)
 {
     return vm_call0(th, recv, id, argc, argv, me);
 }
@@ -165,21 +165,21 @@ vm_call_super(rb_thread_t *th, int argc, const VALUE *argv)
     rb_control_frame_t *cfp = th->cfp;
 
     if (!cfp->iseq) {
-	klass = cfp->me->klass;
-	klass = RCLASS_SUPER(klass);
+        klass = cfp->me->klass;
+        klass = RCLASS_SUPER(klass);
 
-	if (klass == 0) {
-	    klass = vm_search_normal_superclass(cfp->me->klass, recv);
-	}
-	id = cfp->me->def->original_id;
+        if (klass == 0) {
+            klass = vm_search_normal_superclass(cfp->me->klass, recv);
+        }
+        id = cfp->me->def->original_id;
     }
     else {
-	rb_bug("vm_call_super: should not be reached");
+        rb_bug("vm_call_super: should not be reached");
     }
 
     me = rb_method_entry(klass, id);
     if (!me) {
-	return method_missing(recv, id, argc, argv, NOEX_SUPER);
+        return method_missing(recv, id, argc, argv, NOEX_SUPER);
     }
 
     return vm_call0(th, recv, id, argc, argv, me);
@@ -198,8 +198,8 @@ stack_check(void)
     rb_thread_t *th = GET_THREAD();
 
     if (!rb_thread_raised_p(th, RAISED_STACKOVERFLOW) && ruby_stack_check()) {
-	rb_thread_raised_set(th, RAISED_STACKOVERFLOW);
-	rb_exc_raise(sysstack_error);
+        rb_thread_raised_set(th, RAISED_STACKOVERFLOW);
+        rb_exc_raise(sysstack_error);
     }
 }
 
@@ -223,14 +223,14 @@ static inline int rb_method_call_status(rb_thread_t *th, const rb_method_entry_t
  */
 static inline VALUE
 rb_call0(VALUE recv, ID mid, int argc, const VALUE *argv,
-	 call_type scope, VALUE self)
+         call_type scope, VALUE self)
 {
     rb_method_entry_t *me = rb_search_method_entry(recv, mid);
     rb_thread_t *th = GET_THREAD();
     int call_status = rb_method_call_status(th, me, scope, self);
 
     if (call_status != NOEX_OK) {
-	return method_missing(recv, mid, argc, argv, call_status);
+        return method_missing(recv, mid, argc, argv, call_status);
     }
     stack_check();
     return vm_call0(th, recv, mid, argc, argv, me);
@@ -251,14 +251,14 @@ check_funcall_exec(struct rescue_funcall_args *args)
     RB_GC_GUARD(new_args);
     rb_ary_unshift(new_args, args->sym);
     return rb_funcall2(args->recv, idMethodMissing,
-		       args->argc+1, RARRAY_PTR(new_args));
+                       args->argc+1, RARRAY_PTR(new_args));
 }
 
 static VALUE
 check_funcall_failed(struct rescue_funcall_args *args, VALUE e)
 {
     if (rb_respond_to(args->recv, SYM2ID(args->sym))) {
-	rb_exc_raise(e);
+        rb_exc_raise(e);
     }
     return Qundef;
 }
@@ -273,36 +273,36 @@ check_funcall(VALUE recv, ID mid, int argc, VALUE *argv)
 
     me = rb_method_entry(klass, idRespond_to);
     if (me && !(me->flag & NOEX_BASIC)) {
-	VALUE args[2];
-	int arity = rb_method_entry_arity(me);
+        VALUE args[2];
+        int arity = rb_method_entry_arity(me);
 
-	if (arity < 1 || arity > 3) arity = 2;
+        if (arity < 1 || arity > 3) arity = 2;
 
-	args[0] = ID2SYM(mid);
-	args[1] = Qtrue;
-	if (!RTEST(vm_call0(th, recv, idRespond_to, arity, args, me))) {
-	    return Qundef;
-	}
+        args[0] = ID2SYM(mid);
+        args[1] = Qtrue;
+        if (!RTEST(vm_call0(th, recv, idRespond_to, arity, args, me))) {
+            return Qundef;
+        }
     }
 
     me = rb_search_method_entry(recv, mid);
     call_status = rb_method_call_status(th, me, CALL_FCALL, Qundef);
     if (call_status != NOEX_OK) {
-	if (rb_method_basic_definition_p(klass, idMethodMissing)) {
-	    return Qundef;
-	}
-	else {
-	    struct rescue_funcall_args args;
+        if (rb_method_basic_definition_p(klass, idMethodMissing)) {
+            return Qundef;
+        }
+        else {
+            struct rescue_funcall_args args;
 
-	    th->method_missing_reason = 0;
-	    args.recv = recv;
-	    args.sym = ID2SYM(mid);
-	    args.argc = argc;
-	    args.argv = argv;
-	    return rb_rescue2(check_funcall_exec, (VALUE)&args,
-			      check_funcall_failed, (VALUE)&args,
-			      rb_eNoMethodError, (VALUE)0);
-	}
+            th->method_missing_reason = 0;
+            args.recv = recv;
+            args.sym = ID2SYM(mid);
+            args.argc = argc;
+            args.argv = argv;
+            return rb_rescue2(check_funcall_exec, (VALUE)&args,
+                              check_funcall_failed, (VALUE)&args,
+                              rb_eNoMethodError, (VALUE)0);
+        }
     }
     stack_check();
     return vm_call0(th, recv, mid, argc, argv, me);
@@ -400,40 +400,40 @@ rb_method_call_status(rb_thread_t *th, const rb_method_entry_t *me, call_type sc
     int noex;
 
     if (UNDEFINED_METHOD_ENTRY_P(me)) {
-	return scope == CALL_VCALL ? NOEX_VCALL : 0;
+        return scope == CALL_VCALL ? NOEX_VCALL : 0;
     }
     klass = me->klass;
     oid = me->def->original_id;
     noex = me->flag;
 
     if (oid != idMethodMissing) {
-	/* receiver specified form for private method */
-	if (UNLIKELY(noex)) {
-	    if (((noex & NOEX_MASK) & NOEX_PRIVATE) && scope == CALL_PUBLIC) {
-		return NOEX_PRIVATE;
-	    }
+        /* receiver specified form for private method */
+        if (UNLIKELY(noex)) {
+            if (((noex & NOEX_MASK) & NOEX_PRIVATE) && scope == CALL_PUBLIC) {
+                return NOEX_PRIVATE;
+            }
 
-	    /* self must be kind of a specified form for protected method */
-	    if (((noex & NOEX_MASK) & NOEX_PROTECTED) && scope == CALL_PUBLIC) {
-		VALUE defined_class = klass;
+            /* self must be kind of a specified form for protected method */
+            if (((noex & NOEX_MASK) & NOEX_PROTECTED) && scope == CALL_PUBLIC) {
+                VALUE defined_class = klass;
 
-		if (TYPE(defined_class) == T_ICLASS) {
-		    defined_class = RBASIC(defined_class)->klass;
-		}
+                if (TYPE(defined_class) == T_ICLASS) {
+                    defined_class = RBASIC(defined_class)->klass;
+                }
 
-		if (self == Qundef) {
-		    self = th->cfp->self;
-		}
-		if (!rb_obj_is_kind_of(self, defined_class)) {
-		    return NOEX_PROTECTED;
-		}
-	    }
+                if (self == Qundef) {
+                    self = th->cfp->self;
+                }
+                if (!rb_obj_is_kind_of(self, defined_class)) {
+                    return NOEX_PROTECTED;
+                }
+            }
 
-	    if (NOEX_SAFE(noex) > th->safe_level) {
-		rb_raise(rb_eSecurityError, "calling insecure method: %s",
-			 rb_id2name(me->called_id));
-	    }
-	}
+            if (NOEX_SAFE(noex) > th->safe_level) {
+                rb_raise(rb_eSecurityError, "calling insecure method: %s",
+                         rb_id2name(me->called_id));
+            }
+        }
     }
     return NOEX_OK;
 }
@@ -457,7 +457,7 @@ rb_call(VALUE recv, ID mid, int argc, const VALUE *argv, call_type scope)
 }
 
 NORETURN(static void raise_method_missing(rb_thread_t *th, int argc, const VALUE *argv,
-					  VALUE obj, int call_status));
+                                          VALUE obj, int call_status));
 
 /*
  *  call-seq:
@@ -497,21 +497,21 @@ rb_method_missing(int argc, const VALUE *argv, VALUE obj)
 {
     rb_thread_t *th = GET_THREAD();
     raise_method_missing(th, argc, argv, obj, th->method_missing_reason);
-    return Qnil;		/* not reached */
+    return Qnil;                /* not reached */
 }
 
 #define NOEX_MISSING   0x80
 
 static void
 raise_method_missing(rb_thread_t *th, int argc, const VALUE *argv, VALUE obj,
-		     int last_call_status)
+                     int last_call_status)
 {
     ID id;
     VALUE exc = rb_eNoMethodError;
     const char *format = 0;
 
     if (argc == 0 || !SYMBOL_P(argv[0])) {
-	rb_raise(rb_eArgError, "no id given");
+        rb_raise(rb_eArgError, "no id given");
     }
 
     stack_check();
@@ -519,44 +519,44 @@ raise_method_missing(rb_thread_t *th, int argc, const VALUE *argv, VALUE obj,
     id = SYM2ID(argv[0]);
 
     if (last_call_status & NOEX_PRIVATE) {
-	format = "private method `%s' called for %s";
+        format = "private method `%s' called for %s";
     }
     else if (last_call_status & NOEX_PROTECTED) {
-	format = "protected method `%s' called for %s";
+        format = "protected method `%s' called for %s";
     }
     else if (last_call_status & NOEX_VCALL) {
-	format = "undefined local variable or method `%s' for %s";
-	exc = rb_eNameError;
+        format = "undefined local variable or method `%s' for %s";
+        exc = rb_eNameError;
     }
     else if (last_call_status & NOEX_SUPER) {
-	format = "super: no superclass method `%s' for %s";
+        format = "super: no superclass method `%s' for %s";
     }
     if (!format) {
-	format = "undefined method `%s' for %s";
+        format = "undefined method `%s' for %s";
     }
 
     {
-	int n = 0;
-	VALUE mesg;
-	VALUE args[3];
+        int n = 0;
+        VALUE mesg;
+        VALUE args[3];
 
-	mesg = rb_const_get(exc, rb_intern("message"));
-	if (rb_method_basic_definition_p(CLASS_OF(mesg), '!')) {
-	    args[n++] = rb_name_err_mesg_new(mesg, rb_str_new2(format), obj, argv[0]);
-	}
-	else {
-	    args[n++] = rb_funcall(mesg, '!', 3, rb_str_new2(format), obj, argv[0]);
-	}
-	args[n++] = argv[0];
-	if (exc == rb_eNoMethodError) {
-	    args[n++] = rb_ary_new4(argc - 1, argv + 1);
-	}
-	exc = rb_class_new_instance(n, args, exc);
+        mesg = rb_const_get(exc, rb_intern("message"));
+        if (rb_method_basic_definition_p(CLASS_OF(mesg), '!')) {
+            args[n++] = rb_name_err_mesg_new(mesg, rb_str_new2(format), obj, argv[0]);
+        }
+        else {
+            args[n++] = rb_funcall(mesg, '!', 3, rb_str_new2(format), obj, argv[0]);
+        }
+        args[n++] = argv[0];
+        if (exc == rb_eNoMethodError) {
+            args[n++] = rb_ary_new4(argc - 1, argv + 1);
+        }
+        exc = rb_class_new_instance(n, args, exc);
 
-	if (!(last_call_status & NOEX_MISSING)) {
-	    th->cfp = RUBY_VM_PREVIOUS_CONTROL_FRAME(th->cfp);
-	}
-	rb_exc_raise(exc);
+        if (!(last_call_status & NOEX_MISSING)) {
+            th->cfp = RUBY_VM_PREVIOUS_CONTROL_FRAME(th->cfp);
+        }
+        rb_exc_raise(exc);
     }
 }
 
@@ -571,25 +571,25 @@ method_missing(VALUE obj, ID id, int argc, const VALUE *argv, int call_status)
     th->passed_block = 0;
 
     if (id == idMethodMissing) {
-	raise_method_missing(th, argc, argv, obj, call_status | NOEX_MISSING);
+        raise_method_missing(th, argc, argv, obj, call_status | NOEX_MISSING);
     }
     else if (id == ID_ALLOCATOR) {
-	rb_raise(rb_eTypeError, "allocator undefined for %s",
-		 rb_class2name(obj));
+        rb_raise(rb_eTypeError, "allocator undefined for %s",
+                 rb_class2name(obj));
     }
 
     if (argc < 0x100) {
-	nargv = ALLOCA_N(VALUE, argc + 1);
+        nargv = ALLOCA_N(VALUE, argc + 1);
     }
     else {
-	argv_ary = rb_ary_tmp_new(argc + 1);
-	nargv = RARRAY_PTR(argv_ary);
+        argv_ary = rb_ary_tmp_new(argc + 1);
+        nargv = RARRAY_PTR(argv_ary);
     }
     nargv[0] = ID2SYM(id);
     MEMCPY(nargv + 1, argv, VALUE, argc);
 
     if (rb_method_basic_definition_p(CLASS_OF(obj) , idMethodMissing)) {
-	raise_method_missing(th, argc+1, nargv, obj, call_status | NOEX_MISSING);
+        raise_method_missing(th, argc+1, nargv, obj, call_status | NOEX_MISSING);
     }
     th->passed_block = blockptr;
     result = rb_funcall2(obj, idMethodMissing, argc + 1, nargv);
@@ -599,7 +599,7 @@ method_missing(VALUE obj, ID id, int argc, const VALUE *argv, int call_status)
 
 void
 rb_raise_method_missing(rb_thread_t *th, int argc, VALUE *argv,
-			VALUE obj, int call_status)
+                        VALUE obj, int call_status)
 {
     th->passed_block = 0;
     raise_method_missing(th, argc, argv, obj, call_status | NOEX_MISSING);
@@ -641,19 +641,19 @@ rb_funcall(VALUE recv, ID mid, int n, ...)
     va_list ar;
 
     if (n > 0) {
-	long i;
+        long i;
 
-	va_init_list(ar, n);
+        va_init_list(ar, n);
 
-	argv = ALLOCA_N(VALUE, n);
+        argv = ALLOCA_N(VALUE, n);
 
-	for (i = 0; i < n; i++) {
-	    argv[i] = va_arg(ar, VALUE);
-	}
-	va_end(ar);
+        for (i = 0; i < n; i++) {
+            argv[i] = va_arg(ar, VALUE);
+        }
+        va_end(ar);
     }
     else {
-	argv = 0;
+        argv = 0;
     }
     return rb_call(recv, mid, n, argv, CALL_FCALL);
 }
@@ -702,7 +702,7 @@ send_internal(int argc, const VALUE *argv, VALUE recv, call_type scope)
     rb_thread_t *th = GET_THREAD();
 
     if (argc == 0) {
-	rb_raise(rb_eArgError, "no method name given");
+        rb_raise(rb_eArgError, "no method name given");
     }
 
     vid = *argv++; argc--;
@@ -764,10 +764,10 @@ VALUE
 rb_yield(VALUE val)
 {
     if (val == Qundef) {
-	return rb_yield_0(0, 0);
+        return rb_yield_0(0, 0);
     }
     else {
-	return rb_yield_0(1, &val);
+        return rb_yield_0(1, &val);
     }
 }
 
@@ -775,21 +775,21 @@ VALUE
 rb_yield_values(int n, ...)
 {
     if (n == 0) {
-	return rb_yield_0(0, 0);
+        return rb_yield_0(0, 0);
     }
     else {
-	int i;
-	VALUE *argv;
-	va_list args;
-	argv = ALLOCA_N(VALUE, n);
+        int i;
+        VALUE *argv;
+        va_list args;
+        argv = ALLOCA_N(VALUE, n);
 
-	va_init_list(args, n);
-	for (i=0; i<n; i++) {
-	    argv[i] = va_arg(args, VALUE);
-	}
-	va_end(args);
+        va_init_list(args, n);
+        for (i=0; i<n; i++) {
+            argv[i] = va_arg(args, VALUE);
+        }
+        va_end(args);
 
-	return rb_yield_0(n, argv);
+        return rb_yield_0(n, argv);
     }
 }
 
@@ -815,7 +815,7 @@ static VALUE
 loop_i(void)
 {
     for (;;) {
-	rb_yield_0(0, 0);
+        rb_yield_0(0, 0);
     }
     return Qnil;
 }
@@ -844,7 +844,7 @@ rb_f_loop(VALUE self)
 {
     RETURN_ENUMERATOR(self, 0, 0);
     rb_rescue2(loop_i, (VALUE)0, 0, 0, rb_eStopIteration, (VALUE)0);
-    return Qnil;		/* dummy */
+    return Qnil;                /* dummy */
 }
 
 #if VMDEBUG
@@ -854,7 +854,7 @@ vm_frametype_name(const rb_control_frame_t *cfp);
 
 VALUE
 rb_iterate(VALUE (* it_proc) (VALUE), VALUE data1,
-	   VALUE (* bl_proc) (ANYARGS), VALUE data2)
+           VALUE (* bl_proc) (ANYARGS), VALUE data2)
 {
     int state;
     volatile VALUE retval = Qnil;
@@ -867,68 +867,68 @@ rb_iterate(VALUE (* it_proc) (VALUE), VALUE data1,
     state = TH_EXEC_TAG();
     if (state == 0) {
       iter_retry:
-	{
-	    rb_block_t *blockptr;
-	    if (bl_proc) {
-		blockptr = RUBY_VM_GET_BLOCK_PTR_IN_CFP(th->cfp);
-		blockptr->iseq = (void *)node;
-		blockptr->proc = 0;
-	    }
-	    else {
-		blockptr = GC_GUARDED_PTR_REF(th->cfp->lfp[0]);
-	    }
-	    th->passed_block = blockptr;
-	}
-	retval = (*it_proc) (data1);
+        {
+            rb_block_t *blockptr;
+            if (bl_proc) {
+                blockptr = RUBY_VM_GET_BLOCK_PTR_IN_CFP(th->cfp);
+                blockptr->iseq = (void *)node;
+                blockptr->proc = 0;
+            }
+            else {
+                blockptr = GC_GUARDED_PTR_REF(th->cfp->lfp[0]);
+            }
+            th->passed_block = blockptr;
+        }
+        retval = (*it_proc) (data1);
     }
     else {
-	VALUE err = th->errinfo;
-	if (state == TAG_BREAK) {
-	    VALUE *escape_dfp = GET_THROWOBJ_CATCH_POINT(err);
-	    VALUE *cdfp = cfp->dfp;
+        VALUE err = th->errinfo;
+        if (state == TAG_BREAK) {
+            VALUE *escape_dfp = GET_THROWOBJ_CATCH_POINT(err);
+            VALUE *cdfp = cfp->dfp;
 
-	    if (cdfp == escape_dfp) {
-		state = 0;
-		th->state = 0;
-		th->errinfo = Qnil;
+            if (cdfp == escape_dfp) {
+                state = 0;
+                th->state = 0;
+                th->errinfo = Qnil;
 
-		/* check skipped frame */
-		while (th->cfp != cfp) {
+                /* check skipped frame */
+                while (th->cfp != cfp) {
 #if VMDEBUG
-		    printf("skipped frame: %s\n", vm_frametype_name(th->cfp));
+                    printf("skipped frame: %s\n", vm_frametype_name(th->cfp));
 #endif
-		    if (UNLIKELY(VM_FRAME_TYPE(th->cfp) == VM_FRAME_MAGIC_CFUNC)) {
-			const rb_method_entry_t *me = th->cfp->me;
-			EXEC_EVENT_HOOK(th, RUBY_EVENT_C_RETURN, th->cfp->self, me->called_id, me->klass);
-		    }
+                    if (UNLIKELY(VM_FRAME_TYPE(th->cfp) == VM_FRAME_MAGIC_CFUNC)) {
+                        const rb_method_entry_t *me = th->cfp->me;
+                        EXEC_EVENT_HOOK(th, RUBY_EVENT_C_RETURN, th->cfp->self, me->called_id, me->klass);
+                    }
 
-		    th->cfp = RUBY_VM_PREVIOUS_CONTROL_FRAME(th->cfp);
-		}
-	    }
-	    else{
-		/* SDR(); printf("%p, %p\n", cdfp, escape_dfp); */
-	    }
-	}
-	else if (state == TAG_RETRY) {
-	    VALUE *escape_dfp = GET_THROWOBJ_CATCH_POINT(err);
-	    VALUE *cdfp = cfp->dfp;
+                    th->cfp = RUBY_VM_PREVIOUS_CONTROL_FRAME(th->cfp);
+                }
+            }
+            else{
+                /* SDR(); printf("%p, %p\n", cdfp, escape_dfp); */
+            }
+        }
+        else if (state == TAG_RETRY) {
+            VALUE *escape_dfp = GET_THROWOBJ_CATCH_POINT(err);
+            VALUE *cdfp = cfp->dfp;
 
-	    if (cdfp == escape_dfp) {
-		state = 0;
-		th->state = 0;
-		th->errinfo = Qnil;
-		th->cfp = cfp;
-		goto iter_retry;
-	    }
-	}
+            if (cdfp == escape_dfp) {
+                state = 0;
+                th->state = 0;
+                th->errinfo = Qnil;
+                th->cfp = cfp;
+                goto iter_retry;
+            }
+        }
     }
     TH_POP_TAG();
 
     switch (state) {
       case 0:
-	break;
+        break;
       default:
-	TH_JUMP_TAG(th, state);
+        TH_JUMP_TAG(th, state);
     }
     return retval;
 }
@@ -951,7 +951,7 @@ iterate_method(VALUE obj)
 
 VALUE
 rb_block_call(VALUE obj, ID mid, int argc, VALUE * argv,
-	      VALUE (*bl_proc) (ANYARGS), VALUE data2)
+              VALUE (*bl_proc) (ANYARGS), VALUE data2)
 {
     struct iter_method_arg arg;
 
@@ -982,105 +982,105 @@ eval_string_with_cref(VALUE self, VALUE src, VALUE scope, NODE *cref, const char
     volatile int mild_compile_error;
 
     if (file == 0) {
-	file = rb_sourcefile();
-	line = rb_sourceline();
+        file = rb_sourcefile();
+        line = rb_sourceline();
     }
 
     parse_in_eval = th->parse_in_eval;
     mild_compile_error = th->mild_compile_error;
     PUSH_TAG();
     if ((state = EXEC_TAG()) == 0) {
-	rb_iseq_t *iseq;
-	volatile VALUE iseqval;
+        rb_iseq_t *iseq;
+        volatile VALUE iseqval;
 
-	if (scope != Qnil) {
-	    if (rb_obj_is_kind_of(scope, rb_cBinding)) {
-		GetBindingPtr(scope, bind);
-		envval = bind->env;
-		if (strcmp(file, "(eval)") == 0 && bind->filename != Qnil) {
-		    file = RSTRING_PTR(bind->filename);
-		    line = bind->line_no;
-		}
-	    }
-	    else {
-		rb_raise(rb_eTypeError,
-			 "wrong argument type %s (expected Binding)",
-			 rb_obj_classname(scope));
-	    }
-	    GetEnvPtr(envval, env);
-	    th->base_block = &env->block;
-	}
-	else {
-	    rb_control_frame_t *cfp = rb_vm_get_ruby_level_next_cfp(th, th->cfp);
+        if (scope != Qnil) {
+            if (rb_obj_is_kind_of(scope, rb_cBinding)) {
+                GetBindingPtr(scope, bind);
+                envval = bind->env;
+                if (strcmp(file, "(eval)") == 0 && bind->filename != Qnil) {
+                    file = RSTRING_PTR(bind->filename);
+                    line = bind->line_no;
+                }
+            }
+            else {
+                rb_raise(rb_eTypeError,
+                         "wrong argument type %s (expected Binding)",
+                         rb_obj_classname(scope));
+            }
+            GetEnvPtr(envval, env);
+            th->base_block = &env->block;
+        }
+        else {
+            rb_control_frame_t *cfp = rb_vm_get_ruby_level_next_cfp(th, th->cfp);
 
-	    if (cfp != 0) {
-		block = *RUBY_VM_GET_BLOCK_PTR_IN_CFP(cfp);
-		th->base_block = &block;
-		th->base_block->self = self;
-		th->base_block->iseq = cfp->iseq;	/* TODO */
-	    }
-	    else {
-		rb_raise(rb_eRuntimeError, "Can't eval on top of Fiber or Thread");
-	    }
-	}
+            if (cfp != 0) {
+                block = *RUBY_VM_GET_BLOCK_PTR_IN_CFP(cfp);
+                th->base_block = &block;
+                th->base_block->self = self;
+                th->base_block->iseq = cfp->iseq;       /* TODO */
+            }
+            else {
+                rb_raise(rb_eRuntimeError, "Can't eval on top of Fiber or Thread");
+            }
+        }
 
-	/* make eval iseq */
-	th->parse_in_eval++;
-	th->mild_compile_error++;
-	iseqval = rb_iseq_compile(src, rb_str_new2(file), INT2FIX(line));
-	th->mild_compile_error--;
-	th->parse_in_eval--;
+        /* make eval iseq */
+        th->parse_in_eval++;
+        th->mild_compile_error++;
+        iseqval = rb_iseq_compile(src, rb_str_new2(file), INT2FIX(line));
+        th->mild_compile_error--;
+        th->parse_in_eval--;
 
-	vm_set_eval_stack(th, iseqval, cref);
-	th->base_block = 0;
+        vm_set_eval_stack(th, iseqval, cref);
+        th->base_block = 0;
 
-	if (0) {		/* for debug */
-	    VALUE disasm = rb_iseq_disasm(iseqval);
-	    printf("%s\n", StringValuePtr(disasm));
-	}
+        if (0) {                /* for debug */
+            VALUE disasm = rb_iseq_disasm(iseqval);
+            printf("%s\n", StringValuePtr(disasm));
+        }
 
-	/* save new env */
-	GetISeqPtr(iseqval, iseq);
-	if (bind && iseq->local_table_size > 0) {
-	    bind->env = rb_vm_make_env_object(th, th->cfp);
-	}
+        /* save new env */
+        GetISeqPtr(iseqval, iseq);
+        if (bind && iseq->local_table_size > 0) {
+            bind->env = rb_vm_make_env_object(th, th->cfp);
+        }
 
-	/* kick */
-	CHECK_STACK_OVERFLOW(th->cfp, iseq->stack_max);
-	result = vm_exec(th);
+        /* kick */
+        CHECK_STACK_OVERFLOW(th->cfp, iseq->stack_max);
+        result = vm_exec(th);
     }
     POP_TAG();
     th->mild_compile_error = mild_compile_error;
     th->parse_in_eval = parse_in_eval;
 
     if (state) {
-	if (state == TAG_RAISE) {
-	    VALUE errinfo = th->errinfo;
-	    if (strcmp(file, "(eval)") == 0) {
-		VALUE mesg, errat, bt2;
-		ID id_mesg;
+        if (state == TAG_RAISE) {
+            VALUE errinfo = th->errinfo;
+            if (strcmp(file, "(eval)") == 0) {
+                VALUE mesg, errat, bt2;
+                ID id_mesg;
 
-		CONST_ID(id_mesg, "mesg");
-		errat = rb_get_backtrace(errinfo);
-		mesg = rb_attr_get(errinfo, id_mesg);
-		if (!NIL_P(errat) && TYPE(errat) == T_ARRAY &&
-		    (bt2 = vm_backtrace(th, -2), RARRAY_LEN(bt2) > 0)) {
-		    if (!NIL_P(mesg) && TYPE(mesg) == T_STRING && !RSTRING_LEN(mesg)) {
-			if (OBJ_FROZEN(mesg)) {
-			    VALUE m = rb_str_cat(rb_str_dup(RARRAY_PTR(errat)[0]), ": ", 2);
-			    rb_ivar_set(errinfo, id_mesg, rb_str_append(m, mesg));
-			}
-			else {
-			    rb_str_update(mesg, 0, 0, rb_str_new2(": "));
-			    rb_str_update(mesg, 0, 0, RARRAY_PTR(errat)[0]);
-			}
-		    }
-		    RARRAY_PTR(errat)[0] = RARRAY_PTR(bt2)[0];
-		}
-	    }
-	    rb_exc_raise(errinfo);
-	}
-	JUMP_TAG(state);
+                CONST_ID(id_mesg, "mesg");
+                errat = rb_get_backtrace(errinfo);
+                mesg = rb_attr_get(errinfo, id_mesg);
+                if (!NIL_P(errat) && TYPE(errat) == T_ARRAY &&
+                    (bt2 = vm_backtrace(th, -2), RARRAY_LEN(bt2) > 0)) {
+                    if (!NIL_P(mesg) && TYPE(mesg) == T_STRING && !RSTRING_LEN(mesg)) {
+                        if (OBJ_FROZEN(mesg)) {
+                            VALUE m = rb_str_cat(rb_str_dup(RARRAY_PTR(errat)[0]), ": ", 2);
+                            rb_ivar_set(errinfo, id_mesg, rb_str_append(m, mesg));
+                        }
+                        else {
+                            rb_str_update(mesg, 0, 0, rb_str_new2(": "));
+                            rb_str_update(mesg, 0, 0, RARRAY_PTR(errat)[0]);
+                        }
+                    }
+                    RARRAY_PTR(errat)[0] = RARRAY_PTR(bt2)[0];
+                }
+            }
+            rb_exc_raise(errinfo);
+        }
+        JUMP_TAG(state);
     }
     return result;
 }
@@ -1118,24 +1118,24 @@ rb_f_eval(int argc, VALUE *argv, VALUE self)
 
     rb_scan_args(argc, argv, "13", &src, &scope, &vfile, &vline);
     if (rb_safe_level() >= 4) {
-	StringValue(src);
-	if (!NIL_P(scope) && !OBJ_TAINTED(scope)) {
-	    rb_raise(rb_eSecurityError,
-		     "Insecure: can't modify trusted binding");
-	}
+        StringValue(src);
+        if (!NIL_P(scope) && !OBJ_TAINTED(scope)) {
+            rb_raise(rb_eSecurityError,
+                     "Insecure: can't modify trusted binding");
+        }
     }
     else {
-	SafeStringValue(src);
+        SafeStringValue(src);
     }
     if (argc >= 3) {
-	StringValue(vfile);
+        StringValue(vfile);
     }
     if (argc >= 4) {
-	line = NUM2INT(vline);
+        line = NUM2INT(vline);
     }
 
     if (!NIL_P(vfile))
-	file = RSTRING_PTR(vfile);
+        file = RSTRING_PTR(vfile);
     return eval_string(self, src, scope, file, line);
 }
 
@@ -1170,10 +1170,10 @@ rb_eval_string_wrap(const char *str, int *state)
     th->top_wrapper = wrapper;
 
     if (state) {
-	*state = status;
+        *state = status;
     }
     else if (status) {
-	JUMP_TAG(status);
+        JUMP_TAG(status);
     }
     return val;
 }
@@ -1182,32 +1182,32 @@ VALUE
 rb_eval_cmd(VALUE cmd, VALUE arg, int level)
 {
     int state;
-    VALUE val = Qnil;		/* OK */
+    VALUE val = Qnil;           /* OK */
     volatile int safe = rb_safe_level();
 
     if (OBJ_TAINTED(cmd)) {
-	level = 4;
+        level = 4;
     }
 
     if (TYPE(cmd) != T_STRING) {
-	PUSH_TAG();
-	rb_set_safe_level_force(level);
-	if ((state = EXEC_TAG()) == 0) {
-	    val = rb_funcall2(cmd, rb_intern("call"), RARRAY_LENINT(arg),
-			      RARRAY_PTR(arg));
-	}
-	POP_TAG();
+        PUSH_TAG();
+        rb_set_safe_level_force(level);
+        if ((state = EXEC_TAG()) == 0) {
+            val = rb_funcall2(cmd, rb_intern("call"), RARRAY_LENINT(arg),
+                              RARRAY_PTR(arg));
+        }
+        POP_TAG();
 
-	rb_set_safe_level_force(safe);
+        rb_set_safe_level_force(safe);
 
-	if (state)
-	  JUMP_TAG(state);
-	return val;
+        if (state)
+          JUMP_TAG(state);
+        return val;
     }
 
     PUSH_TAG();
     if ((state = EXEC_TAG()) == 0) {
-	val = eval_string(rb_vm_top_self(), cmd, Qnil, 0, 0);
+        val = eval_string(rb_vm_top_self(), cmd, Qnil, 0, 0);
     }
     POP_TAG();
 
@@ -1226,18 +1226,18 @@ yield_under(VALUE under, VALUE self, VALUE values)
     NODE *cref;
 
     if ((blockptr = GC_GUARDED_PTR_REF(th->cfp->lfp[0])) != 0) {
-	block = *blockptr;
-	block.self = self;
-	th->cfp->lfp[0] = GC_GUARDED_PTR(&block);
+        block = *blockptr;
+        block.self = self;
+        th->cfp->lfp[0] = GC_GUARDED_PTR(&block);
     }
     cref = vm_cref_push(th, under, NOEX_PUBLIC, blockptr);
     cref->flags |= NODE_FL_CREF_PUSHED_BY_EVAL;
 
     if (values == Qundef) {
-	return vm_yield_with_cref(th, 1, &self, cref);
+        return vm_yield_with_cref(th, 1, &self, cref);
     }
     else {
-	return vm_yield_with_cref(th, RARRAY_LENINT(values), RARRAY_PTR(values), cref);
+        return vm_yield_with_cref(th, RARRAY_LENINT(values), RARRAY_PTR(values), cref);
     }
 }
 
@@ -1248,10 +1248,10 @@ eval_under(VALUE under, VALUE self, VALUE src, const char *file, int line)
     NODE *cref = vm_cref_push(GET_THREAD(), under, NOEX_PUBLIC, NULL);
 
     if (rb_safe_level() >= 4) {
-	StringValue(src);
+        StringValue(src);
     }
     else {
-	SafeStringValue(src);
+        SafeStringValue(src);
     }
 
     return eval_string_with_cref(self, src, Qnil, cref, file, line);
@@ -1261,38 +1261,38 @@ static VALUE
 specific_eval(int argc, VALUE *argv, VALUE klass, VALUE self)
 {
     if (rb_block_given_p()) {
-	if (argc > 0) {
-	    rb_raise(rb_eArgError, "wrong number of arguments (%d for 0)", argc);
-	}
-	return yield_under(klass, self, Qundef);
+        if (argc > 0) {
+            rb_raise(rb_eArgError, "wrong number of arguments (%d for 0)", argc);
+        }
+        return yield_under(klass, self, Qundef);
     }
     else {
-	const char *file = "(eval)";
-	int line = 1;
+        const char *file = "(eval)";
+        int line = 1;
 
-	if (argc == 0) {
-	    rb_raise(rb_eArgError, "block not supplied");
-	}
-	else {
-	    if (rb_safe_level() >= 4) {
-		StringValue(argv[0]);
-	    }
-	    else {
-		SafeStringValue(argv[0]);
-	    }
-	    if (argc > 3) {
-		const char *name = rb_id2name(rb_frame_callee());
-		rb_raise(rb_eArgError,
-			 "wrong number of arguments: %s(src) or %s{..}",
-			 name, name);
-	    }
-	    if (argc > 2)
-		line = NUM2INT(argv[2]);
-	    if (argc > 1) {
-		file = StringValuePtr(argv[1]);
-	    }
-	}
-	return eval_under(klass, self, argv[0], file, line);
+        if (argc == 0) {
+            rb_raise(rb_eArgError, "block not supplied");
+        }
+        else {
+            if (rb_safe_level() >= 4) {
+                StringValue(argv[0]);
+            }
+            else {
+                SafeStringValue(argv[0]);
+            }
+            if (argc > 3) {
+                const char *name = rb_id2name(rb_frame_callee());
+                rb_raise(rb_eArgError,
+                         "wrong number of arguments: %s(src) or %s{..}",
+                         name, name);
+            }
+            if (argc > 2)
+                line = NUM2INT(argv[2]);
+            if (argc > 1) {
+                file = StringValuePtr(argv[1]);
+            }
+        }
+        return eval_under(klass, self, argv[0], file, line);
     }
 }
 
@@ -1325,10 +1325,10 @@ rb_obj_instance_eval(int argc, VALUE *argv, VALUE self)
     VALUE klass;
 
     if (SPECIAL_CONST_P(self)) {
-	klass = Qnil;
+        klass = Qnil;
     }
     else {
-	klass = rb_singleton_class(self);
+        klass = rb_singleton_class(self);
     }
     return specific_eval(argc, argv, klass, self);
 }
@@ -1357,10 +1357,10 @@ rb_obj_instance_exec(int argc, VALUE *argv, VALUE self)
     VALUE klass;
 
     if (SPECIAL_CONST_P(self)) {
-	klass = Qnil;
+        klass = Qnil;
     }
     else {
-	klass = rb_singleton_class(self);
+        klass = rb_singleton_class(self);
     }
     return yield_under(klass, self, rb_ary_new4(argc, argv));
 }
@@ -1440,7 +1440,7 @@ rb_f_throw(int argc, VALUE *argv)
 
     rb_scan_args(argc, argv, "11", &tag, &value);
     rb_throw_obj(tag, value);
-    return Qnil;		/* not reached */
+    return Qnil;                /* not reached */
 }
 
 void
@@ -1450,16 +1450,16 @@ rb_throw_obj(VALUE tag, VALUE value)
     struct rb_vm_tag *tt = th->tag;
 
     while (tt) {
-	if (tt->tag == tag) {
-	    tt->retval = value;
-	    break;
-	}
-	tt = tt->prev;
+        if (tt->tag == tag) {
+            tt->retval = value;
+            break;
+        }
+        tt = tt->prev;
     }
     if (!tt) {
-	VALUE desc = rb_inspect(tag);
-	RB_GC_GUARD(desc);
-	rb_raise(rb_eArgError, "uncaught throw %s", RSTRING_PTR(desc));
+        VALUE desc = rb_inspect(tag);
+        RB_GC_GUARD(desc);
+        rb_raise(rb_eArgError, "uncaught throw %s", RSTRING_PTR(desc));
     }
     rb_trap_restore_mask();
     th->errinfo = NEW_THROW_OBJECT(tag, 0, TAG_THROW);
@@ -1522,10 +1522,10 @@ rb_f_catch(int argc, VALUE *argv)
     VALUE tag;
 
     if (argc == 0) {
-	tag = rb_obj_alloc(rb_cObject);
+        tag = rb_obj_alloc(rb_cObject);
     }
     else {
-	rb_scan_args(argc, argv, "01", &tag);
+        rb_scan_args(argc, argv, "01", &tag);
     }
     return rb_catch_obj(tag, catch_i, 0);
 }
@@ -1541,7 +1541,7 @@ VALUE
 rb_catch_obj(VALUE tag, VALUE (*func)(), VALUE data)
 {
     int state;
-    volatile VALUE val = Qnil;		/* OK */
+    volatile VALUE val = Qnil;          /* OK */
     rb_thread_t *th = GET_THREAD();
     rb_control_frame_t *saved_cfp = th->cfp;
 
@@ -1550,18 +1550,18 @@ rb_catch_obj(VALUE tag, VALUE (*func)(), VALUE data)
     th->tag->tag = tag;
 
     if ((state = EXEC_TAG()) == 0) {
-	/* call with argc=1, argv = [tag], block = Qnil to insure compatibility */
-	val = (*func)(tag, data, 1, &tag, Qnil);
+        /* call with argc=1, argv = [tag], block = Qnil to insure compatibility */
+        val = (*func)(tag, data, 1, &tag, Qnil);
     }
     else if (state == TAG_THROW && RNODE(th->errinfo)->u1.value == tag) {
-	th->cfp = saved_cfp;
-	val = th->tag->retval;
-	th->errinfo = Qnil;
-	state = 0;
+        th->cfp = saved_cfp;
+        val = th->tag->retval;
+        th->errinfo = Qnil;
+        state = 0;
     }
     POP_TAG();
     if (state)
-	JUMP_TAG(state);
+        JUMP_TAG(state);
 
     return val;
 }
@@ -1605,11 +1605,11 @@ rb_f_caller(int argc, VALUE *argv)
     rb_scan_args(argc, argv, "01", &level);
 
     if (NIL_P(level))
-	lev = 1;
+        lev = 1;
     else
-	lev = NUM2INT(level);
+        lev = NUM2INT(level);
     if (lev < 0)
-	rb_raise(rb_eArgError, "negative level (%d)", lev);
+        rb_raise(rb_eArgError, "negative level (%d)", lev);
 
     return vm_backtrace(GET_THREAD(), lev);
 }
@@ -1620,12 +1620,12 @@ print_backtrace(void *arg, VALUE file, int line, VALUE method)
     FILE *fp = arg;
     const char *filename = NIL_P(file) ? "ruby" : RSTRING_PTR(file);
     if (NIL_P(method)) {
-	fprintf(fp, "\tfrom %s:%d:in unknown method\n",
-		filename, line);
+        fprintf(fp, "\tfrom %s:%d:in unknown method\n",
+                filename, line);
     }
     else {
-	fprintf(fp, "\tfrom %s:%d:in `%s'\n",
-		filename, line, RSTRING_PTR(method));
+        fprintf(fp, "\tfrom %s:%d:in `%s'\n",
+                filename, line, RSTRING_PTR(method));
     }
     return FALSE;
 }
@@ -1652,10 +1652,10 @@ rb_thread_backtrace(VALUE thval)
       case THREAD_RUNNABLE:
       case THREAD_STOPPED:
       case THREAD_STOPPED_FOREVER:
-	break;
+        break;
       case THREAD_TO_KILL:
       case THREAD_KILLED:
-	return Qnil;
+        return Qnil;
     }
 
     return vm_backtrace(th, 0);
@@ -1686,38 +1686,38 @@ rb_f_local_variables(void)
     VALUE ary = rb_ary_new();
     rb_thread_t *th = GET_THREAD();
     rb_control_frame_t *cfp =
-	vm_get_ruby_level_caller_cfp(th, RUBY_VM_PREVIOUS_CONTROL_FRAME(th->cfp));
+        vm_get_ruby_level_caller_cfp(th, RUBY_VM_PREVIOUS_CONTROL_FRAME(th->cfp));
     int i;
 
     while (cfp) {
-	if (cfp->iseq) {
-	    for (i = 0; i < cfp->iseq->local_table_size; i++) {
-		ID lid = cfp->iseq->local_table[i];
-		if (lid) {
-		    const char *vname = rb_id2name(lid);
-		    /* should skip temporary variable */
-		    if (vname) {
-			rb_ary_push(ary, ID2SYM(lid));
-		    }
-		}
-	    }
-	}
-	if (cfp->lfp != cfp->dfp) {
-	    /* block */
-	    VALUE *dfp = GC_GUARDED_PTR_REF(cfp->dfp[0]);
+        if (cfp->iseq) {
+            for (i = 0; i < cfp->iseq->local_table_size; i++) {
+                ID lid = cfp->iseq->local_table[i];
+                if (lid) {
+                    const char *vname = rb_id2name(lid);
+                    /* should skip temporary variable */
+                    if (vname) {
+                        rb_ary_push(ary, ID2SYM(lid));
+                    }
+                }
+            }
+        }
+        if (cfp->lfp != cfp->dfp) {
+            /* block */
+            VALUE *dfp = GC_GUARDED_PTR_REF(cfp->dfp[0]);
 
-	    if (vm_collect_local_variables_in_heap(th, dfp, ary)) {
-		break;
-	    }
-	    else {
-		while (cfp->dfp != dfp) {
-		    cfp = RUBY_VM_PREVIOUS_CONTROL_FRAME(cfp);
-		}
-	    }
-	}
-	else {
-	    break;
-	}
+            if (vm_collect_local_variables_in_heap(th, dfp, ary)) {
+                break;
+            }
+            else {
+                while (cfp->dfp != dfp) {
+                    cfp = RUBY_VM_PREVIOUS_CONTROL_FRAME(cfp);
+                }
+            }
+        }
+        else {
+            break;
+        }
     }
     return ary;
 }
@@ -1752,12 +1752,12 @@ rb_f_block_given_p(void)
     cfp = vm_get_ruby_level_caller_cfp(th, RUBY_VM_PREVIOUS_CONTROL_FRAME(cfp));
 
     if (cfp != 0 &&
-	(cfp->lfp[0] & 0x02) == 0 &&
-	GC_GUARDED_PTR_REF(cfp->lfp[0])) {
-	return Qtrue;
+        (cfp->lfp[0] & 0x02) == 0 &&
+        GC_GUARDED_PTR_REF(cfp->lfp[0])) {
+        return Qtrue;
     }
     else {
-	return Qfalse;
+        return Qfalse;
     }
 }
 
@@ -1790,9 +1790,9 @@ Init_vm_eval(void)
 
 #if 1
     rb_add_method(rb_cBasicObject, rb_intern("__send__"),
-		  VM_METHOD_TYPE_OPTIMIZED, (void *)OPTIMIZED_METHOD_TYPE_SEND, 0);
+                  VM_METHOD_TYPE_OPTIMIZED, (void *)OPTIMIZED_METHOD_TYPE_SEND, 0);
     rb_add_method(rb_mKernel, rb_intern("send"),
-		  VM_METHOD_TYPE_OPTIMIZED, (void *)OPTIMIZED_METHOD_TYPE_SEND, 0);
+                  VM_METHOD_TYPE_OPTIMIZED, (void *)OPTIMIZED_METHOD_TYPE_SEND, 0);
 #else
     rb_define_method(rb_cBasicObject, "__send__", rb_f_send, -1);
     rb_define_method(rb_mKernel, "send", rb_f_send, -1);

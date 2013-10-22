@@ -19,7 +19,7 @@
 #openssl
 #pty
 #racc/cparse
-#readline
+readline
 #ripper
 #sdbm
 #socket

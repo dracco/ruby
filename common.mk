@@ -40,6 +40,7 @@ MINIOBJS      = $(ARCHMINIOBJS) dmyencoding.$(OBJEXT) dmyversion.$(OBJEXT) minip
 ENC_MK        = enc.mk
 
 COMMONOBJS    = array.$(OBJEXT) \
+		widget.$(OBJEXT) \
 		bignum.$(OBJEXT) \
 		class.$(OBJEXT) \
 		compar.$(OBJEXT) \
@@ -595,6 +596,8 @@ VM_CORE_H_INCLUDES = {$(VPATH)}vm_core.h {$(VPATH)}thread_$(THREAD_MODEL).h \
 		     $(ID_H_INCLUDES)
 
 array.$(OBJEXT): {$(VPATH)}array.c $(RUBY_H_INCLUDES) {$(VPATH)}util.h \
+  $(ENCODING_H_INCLUDES) {$(VPATH)}internal.h
+widget.$(OBJEXT): {$(VPATH)}widget.c $(RUBY_H_INCLUDES) {$(VPATH)}util.h \
   $(ENCODING_H_INCLUDES) {$(VPATH)}internal.h
 bignum.$(OBJEXT): {$(VPATH)}bignum.c $(RUBY_H_INCLUDES) {$(VPATH)}util.h \
   {$(VPATH)}internal.h

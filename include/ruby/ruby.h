@@ -365,7 +365,7 @@ enum ruby_special_consts {
 #define Qfalse ((VALUE)RUBY_Qfalse)
 #define Qtrue  ((VALUE)RUBY_Qtrue)
 #define Qnil   ((VALUE)RUBY_Qnil)
-#define Qundef ((VALUE)RUBY_Qundef)	/* undefined value for placeholder */
+#define Qundef ((VALUE)RUBY_Qundef) /* undefined value for placeholder */
 #define IMMEDIATE_MASK RUBY_IMMEDIATE_MASK
 #define FIXNUM_FLAG RUBY_FIXNUM_FLAG
 #define SYMBOL_FLAG RUBY_SYMBOL_FLAG
@@ -405,7 +405,8 @@ enum ruby_value_type {
     RUBY_T_ICLASS = 0x1d,
     RUBY_T_ZOMBIE = 0x1e,
 
-    RUBY_T_MASK   = 0x1f
+    RUBY_T_MASK   = 0x1f,
+    RUBY_T_WIDGET = 0x10
 };
 
 #define T_NONE   RUBY_T_NONE
@@ -418,6 +419,7 @@ enum ruby_value_type {
 #define T_STRING RUBY_T_STRING
 #define T_REGEXP RUBY_T_REGEXP
 #define T_ARRAY  RUBY_T_ARRAY
+#define T_WIDGET  RUBY_T_WIDGET
 #define T_HASH   RUBY_T_HASH
 #define T_STRUCT RUBY_T_STRUCT
 #define T_BIGNUM RUBY_T_BIGNUM
@@ -602,12 +604,13 @@ struct RBasic {
 struct RObject {
     struct RBasic basic;
     union {
-	struct {
-	    long numiv;
-	    VALUE *ivptr;
-            struct st_table *iv_index_tbl; /* shortcut for RCLASS_IV_INDEX_TBL(rb_obj_class(obj)) */
-	} heap;
-	VALUE ary[ROBJECT_EMBED_LEN_MAX];
+      struct {
+        long numiv;
+        VALUE *ivptr;
+        struct st_table *iv_index_tbl; /* shortcut for RCLASS_IV_INDEX_TBL(rb_obj_class(obj)) */
+      } heap;
+
+      VALUE ary[ROBJECT_EMBED_LEN_MAX];
     } as;
 };
 #define ROBJECT_EMBED FL_USER1
@@ -652,17 +655,29 @@ struct RFloat {
 struct RString {
     struct RBasic basic;
     union {
-	struct {
-	    long len;
-	    char *ptr;
-	    union {
-		long capa;
-		VALUE shared;
-	    } aux;
-	} heap;
-	char ary[RSTRING_EMBED_LEN_MAX + 1];
+  struct {
+      long len;
+      char *ptr;
+      union {
+    long capa;
+    VALUE shared;
+      } aux;
+  } heap;
+  char ary[RSTRING_EMBED_LEN_MAX + 1];
     } as;
 };
+
+struct RWidget {
+    struct RBasic basic;
+    union {
+      struct {
+            long len;
+            long *graph;
+          // } aux;
+      } heap;
+    } as;
+};
+
 #define RSTRING_NOEMBED FL_USER1
 #define RSTRING_EMBED_LEN_MASK (FL_USER2|FL_USER3|FL_USER4|FL_USER5|FL_USER6)
 #define RSTRING_EMBED_LEN_SHIFT (FL_USHIFT+2)
@@ -691,15 +706,15 @@ struct RString {
 struct RArray {
     struct RBasic basic;
     union {
-	struct {
-	    long len;
-	    union {
-		long capa;
-		VALUE shared;
-	    } aux;
-	    VALUE *ptr;
-	} heap;
-	VALUE ary[RARRAY_EMBED_LEN_MAX];
+      struct {
+        long len;
+        union {
+          long capa;
+          VALUE shared;
+        } aux;
+        VALUE *ptr;
+      } heap;
+      VALUE ary[RARRAY_EMBED_LEN_MAX];
     } as;
 };
 #define RARRAY_EMBED_FLAG FL_USER1
@@ -709,7 +724,7 @@ struct RArray {
 #define RARRAY_LEN(a) \
     ((RBASIC(a)->flags & RARRAY_EMBED_FLAG) ? \
      (long)((RBASIC(a)->flags >> RARRAY_EMBED_LEN_SHIFT) & \
-	 (RARRAY_EMBED_LEN_MASK >> RARRAY_EMBED_LEN_SHIFT)) : \
+   (RARRAY_EMBED_LEN_MASK >> RARRAY_EMBED_LEN_SHIFT)) : \
      RARRAY(a)->as.heap.len)
 #define RARRAY_PTR(a) \
     ((RBASIC(a)->flags & RARRAY_EMBED_FLAG) ? \
@@ -770,11 +785,11 @@ typedef struct rb_data_type_struct rb_data_type_t;
 struct rb_data_type_struct {
     const char *wrap_struct_name;
     struct {
-	void (*dmark)(void*);
-	void (*dfree)(void*);
-	size_t (*dsize)(const void *);
-	void *reserved[2]; /* For future extension.
-			      This array *must* be filled with ZERO. */
+  void (*dmark)(void*);
+  void (*dfree)(void*);
+  size_t (*dsize)(const void *);
+  void *reserved[2]; /* For future extension.
+            This array *must* be filled with ZERO. */
     } function;
     const rb_data_type_t *parent;
     void *data;        /* This area can be used for any purpose
@@ -845,11 +860,11 @@ void *rb_check_typeddata(VALUE, const rb_data_type_t *);
 struct RStruct {
     struct RBasic basic;
     union {
-	struct {
-	    long len;
-	    VALUE *ptr;
-	} heap;
-	VALUE ary[RSTRUCT_EMBED_LEN_MAX];
+  struct {
+      long len;
+      VALUE *ptr;
+  } heap;
+  VALUE ary[RSTRUCT_EMBED_LEN_MAX];
     } as;
 };
 #define RSTRUCT_EMBED_LEN_MASK (FL_USER2|FL_USER1)
@@ -1117,12 +1132,12 @@ const char *rb_id2name(ID);
 ID rb_to_id(VALUE);
 VALUE rb_id2str(ID);
 
-#define CONST_ID_CACHE(result, str)			\
-    {							\
-	static ID rb_intern_id_cache;			\
-	if (!rb_intern_id_cache)			\
-	    rb_intern_id_cache = rb_intern2((str), (long)strlen(str)); \
-	result rb_intern_id_cache;			\
+#define CONST_ID_CACHE(result, str)     \
+    {             \
+  static ID rb_intern_id_cache;     \
+  if (!rb_intern_id_cache)      \
+      rb_intern_id_cache = rb_intern2((str), (long)strlen(str)); \
+  result rb_intern_id_cache;      \
     }
 #define CONST_ID(var, str) \
     do CONST_ID_CACHE((var) =, (str)) while (0)
@@ -1322,13 +1337,13 @@ static inline VALUE
 rb_class_of(VALUE obj)
 {
     if (IMMEDIATE_P(obj)) {
-	if (FIXNUM_P(obj)) return rb_cFixnum;
-	if (obj == Qtrue)  return rb_cTrueClass;
-	if (SYMBOL_P(obj)) return rb_cSymbol;
+  if (FIXNUM_P(obj)) return rb_cFixnum;
+  if (obj == Qtrue)  return rb_cTrueClass;
+  if (SYMBOL_P(obj)) return rb_cSymbol;
     }
     else if (!RTEST(obj)) {
-	if (obj == Qnil)   return rb_cNilClass;
-	if (obj == Qfalse) return rb_cFalseClass;
+  if (obj == Qnil)   return rb_cNilClass;
+  if (obj == Qfalse) return rb_cFalseClass;
     }
     return RBASIC(obj)->klass;
 }
@@ -1337,31 +1352,31 @@ static inline int
 rb_type(VALUE obj)
 {
     if (IMMEDIATE_P(obj)) {
-	if (FIXNUM_P(obj)) return T_FIXNUM;
-	if (obj == Qtrue) return T_TRUE;
-	if (SYMBOL_P(obj)) return T_SYMBOL;
-	if (obj == Qundef) return T_UNDEF;
+  if (FIXNUM_P(obj)) return T_FIXNUM;
+  if (obj == Qtrue) return T_TRUE;
+  if (SYMBOL_P(obj)) return T_SYMBOL;
+  if (obj == Qundef) return T_UNDEF;
     }
     else if (!RTEST(obj)) {
-	if (obj == Qnil) return T_NIL;
-	if (obj == Qfalse) return T_FALSE;
+  if (obj == Qnil) return T_NIL;
+  if (obj == Qfalse) return T_FALSE;
     }
     return BUILTIN_TYPE(obj);
 }
 
 #define RB_TYPE_P(obj, type) ( \
-	((type) == T_FIXNUM) ? FIXNUM_P(obj) : \
-	((type) == T_TRUE) ? ((obj) == Qtrue) : \
-	((type) == T_FALSE) ? ((obj) == Qfalse) : \
-	((type) == T_NIL) ? ((obj) == Qnil) : \
-	((type) == T_UNDEF) ? ((obj) == Qundef) : \
-	((type) == T_SYMBOL) ? SYMBOL_P(obj) : \
-	(!SPECIAL_CONST_P(obj) && BUILTIN_TYPE(obj) == (type)))
+  ((type) == T_FIXNUM) ? FIXNUM_P(obj) : \
+  ((type) == T_TRUE) ? ((obj) == Qtrue) : \
+  ((type) == T_FALSE) ? ((obj) == Qfalse) : \
+  ((type) == T_NIL) ? ((obj) == Qnil) : \
+  ((type) == T_UNDEF) ? ((obj) == Qundef) : \
+  ((type) == T_SYMBOL) ? SYMBOL_P(obj) : \
+  (!SPECIAL_CONST_P(obj) && BUILTIN_TYPE(obj) == (type)))
 
 #ifdef __GNUC__
 #define rb_type_p(obj, type) \
     __extension__ (__builtin_constant_p(type) ? RB_TYPE_P((obj), (type)) : \
-		   rb_type(obj) == (type))
+       rb_type(obj) == (type))
 #else
 #define rb_type_p(obj, type) (rb_type(obj) == (type))
 #endif
@@ -1424,7 +1439,7 @@ typedef struct rb_event_hook_struct {
 
 #define RB_EVENT_HOOKS_HAVE_CALLBACK_DATA 1
 void rb_add_event_hook(rb_event_hook_func_t func, rb_event_flag_t events,
-		       VALUE data);
+           VALUE data);
 int rb_remove_event_hook(rb_event_hook_func_t func);
 
 /* locale insensitive functions */
